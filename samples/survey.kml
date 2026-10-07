@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+  <name>Survey</name>
+  <Placemark>
+    <name>Plot A</name>
+    <description>Farm plot</description>
+    <ExtendedData>
+      <Data name="owner"><value>Ravi</value></Data>
+      <Data name="survey_no"><value>42</value></Data>
+    </ExtendedData>
+    <Polygon><outerBoundaryIs><LinearRing>
+      <coordinates>77.59,12.97,0 77.60,12.97,0 77.60,12.98,0 77.59,12.98,0 77.59,12.97,0</coordinates>
+    </LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>
+  <Placemark>
+    <name>Well</name>
+    <Point><coordinates>77.595,12.975</coordinates></Point>
+  </Placemark>
+  <Folder>
+    <name>Roads</name>
+    <Placemark>
+      <name>Access road</name>
+      <LineString><coordinates>77.59,12.97 77.61,12.99</coordinates></LineString>
+    </Placemark>
+  </Folder>
+</Document>
+</kml>
