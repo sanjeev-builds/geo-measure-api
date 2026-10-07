@@ -1,0 +1,12 @@
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["F", "E", "W", "B", "UP", "SIM", "I"]
+# Depends()/File() in argument defaults is the standard FastAPI pattern.
+ignore = ["B008"]

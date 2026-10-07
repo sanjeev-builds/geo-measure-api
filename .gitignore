@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# Local data: SQLite database and uploaded files
+data/
+*.db
+
+# Environment / editor
+.env
+.vscode/
+.idea/
+.DS_Store
+*.log
