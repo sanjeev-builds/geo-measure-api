@@ -222,6 +222,13 @@ class TestNoMeasurement:
         assert result.status is MeasurementStatus.UNAVAILABLE
         assert "wider than one UTM zone" in result.note
 
+    def test_feature_crossing_the_antimeridian(self):
+        # A ~22 km road in Fiji that crosses 180°.
+        result = measure_feature(LineString([(179.9, -16.5), (-179.9, -16.5)]), "EPSG:4326")
+
+        assert result.status is MeasurementStatus.UNAVAILABLE
+        assert "180° meridian" in result.note
+
     def test_mislabelled_crs_is_detected(self):
         # Metre coordinates in a file that claims to be lon/lat.
         result = measure_feature(box(500_000, 1_400_000, 501_000, 1_401_000), "EPSG:4326")

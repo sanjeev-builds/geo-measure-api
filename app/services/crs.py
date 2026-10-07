@@ -96,6 +96,13 @@ def utm_crs_for(geometry: BaseGeometry, source: CRS) -> CRS:
             f"Feature extends beyond UTM coverage ({UTM_MIN_LATITUDE:g}° to {UTM_MAX_LATITUDE:g}° latitude); "
             "polar features are not measured."
         )
+    if east - west > 180:
+        # A small feature crossing 180° has coordinates near both -180 and +180, so its lon/lat
+        # bounding box spans almost the whole globe. Choosing a zone from that box would be wrong.
+        raise CrsSelectionError(
+            "Feature appears to cross the 180° meridian; UTM zone selection does not handle "
+            "antimeridian-wrapping geometries, so it is not measured."
+        )
     if east - west > MAX_LONGITUDE_SPAN_DEGREES:
         raise CrsSelectionError(
             f"Feature spans {east - west:.1f}° of longitude, wider than one UTM zone "

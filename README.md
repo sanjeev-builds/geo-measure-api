@@ -178,7 +178,7 @@ app/
     crs.py           choosing the projected CRS, transforming geometries
     measure.py       area/length per feature, summary totals
     processor.py     background job tying the above together
-tests/               140 tests; sample files are generated in code (tests/factories.py)
+tests/               141 tests; sample files are generated in code (tests/factories.py)
 ```
 
 The services know nothing about HTTP. They raise their own exceptions, and the API layer maps those to status codes.
@@ -298,7 +298,7 @@ have a list in `detail` instead of a string.)
 ## Testing
 
 ```bash
-pytest     # 140 tests, ~7 s
+pytest     # 141 tests, ~7 s
 ```
 
 - **Measurement correctness**: expected values come from `pyproj.Geod`, not from UTM, so the tests check
@@ -307,7 +307,7 @@ pytest     # 140 tests, ~7 s
   3D coordinates.
 - **CRS selection**: UTM zones for several cities, zone boundaries, the equator, world projections, and a
   missing CRS.
-- **Edge cases**: points, empty geometries, GeometryCollections, invalid (bowtie) polygons, polar and very wide
+- **Edge cases**: points, empty geometries, GeometryCollections, invalid (bowtie) polygons, polar, very wide and antimeridian-crossing
   features, mislabelled CRS.
 - **File handling**: zip-slip, corrupt and truncated zips, zip bombs, missing `.shp`/`.shx`/`.dbf`, multiple
   `.shp` files, nested folders, macOS `__MACOSX` entries, unsafe filenames, size limits, and that error
@@ -322,7 +322,8 @@ Test Shapefiles and KML are generated in code (`tests/factories.py`), so the rep
 - Processing is in-process (see BackgroundTasks above). A restart leaves jobs stuck in `PROCESSING`, and there
   is no retry endpoint.
 - Features near the poles, or wider than 6° of longitude, are not measured. They get a note explaining why.
-  Features crossing the 180° meridian are also rejected, under the "too wide" message.
+- Features crossing the 180° meridian are not measured: the UTM zone is chosen from the lon/lat bounding box,
+  which doesn't handle geometries that wrap around the antimeridian. The note says so explicitly.
 - A feature that crosses a UTM zone boundary is measured in the zone of its centre. The extra error is small,
   under ~0.5%.
 - Projected CRSs other than the world cylindrical ones are trusted as-is. The assumption is that whoever chose
