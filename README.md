@@ -31,7 +31,7 @@ uvicorn app.main:app --reload
 
 Interactive docs are at http://localhost:8000/docs. Run the tests with `pytest`.
 
-With Docker:
+With Docker (the Dockerfile is included but has not been verified locally yet):
 
 ```bash
 docker build -t geo-measure-api .
@@ -200,17 +200,22 @@ process_file(id): status = PROCESSING
   (any known problem → FAILED with a message; the extracted copy is deleted either way)
 ```
 
-Some details:
+Upload safety:
 
-- **The client's filename is never used as a path.** Uploads are saved as `source.zip` / `source.kml`, and the
-  original name is only kept for display. An early version used it directly. Names like `a<b>.kml` caused 500s,
-  and `evil:stream.kml` created an NTFS alternate data stream.
-- **A missing `.prj` doesn't fail the file.** Features are still extracted, but they can't be measured (see below).
-- **KML**: LIBKML turns each `<Folder>` into a separate layer, so all layers are read. Google Earth display
-  fields (`tessellate`, `extrude`, `icon`, …) are dropped from properties because they describe styling, not
-  data. `<ExtendedData>` values are kept. They come back as strings, which is how KML stores them.
-- **GDAL error messages** include the absolute server path. That's replaced with the file name before the error
-  is stored.
+- Client-supplied filenames are sanitised and never used as filesystem paths. Files are stored as
+  `source.zip` / `source.kml`, and the original name is kept only for display.
+- Zip archives are validated before extraction: entries that would escape the target folder are rejected, as are
+  archives over the uncompressed-size or entry-count limits. The extracted copy is deleted after reading.
+- Oversized requests are rejected from their `Content-Length` before the body is read, with a streaming size
+  check as a fallback.
+- Error messages from GDAL have server paths replaced with the bare file name before they are returned.
+
+Reading details:
+
+- A missing `.prj` doesn't fail the file. Features are still extracted, but they can't be measured (see below).
+- LIBKML turns each KML `<Folder>` into a separate layer, so all layers are read. Google Earth display fields
+  (`tessellate`, `extrude`, `icon`, …) are dropped from properties because they describe styling, not data.
+  `<ExtendedData>` values are kept, as strings, which is how KML stores them.
 
 ### CRS handling
 
@@ -305,7 +310,7 @@ pytest     # 140 tests, ~7 s
 - **Edge cases**: points, empty geometries, GeometryCollections, invalid (bowtie) polygons, polar and very wide
   features, mislabelled CRS.
 - **File handling**: zip-slip, corrupt and truncated zips, zip bombs, missing `.shp`/`.shx`/`.dbf`, multiple
-  `.shp` files, nested folders, macOS `__MACOSX` entries, hostile filenames, size limits, and that error
+  `.shp` files, nested folders, macOS `__MACOSX` entries, unsafe filenames, size limits, and that error
   messages contain no server paths.
 - **Lifecycle and API**: PENDING → PROCESSING → COMPLETED/FAILED, re-processing without duplicates, and every
   endpoint's success and error responses.
@@ -330,21 +335,15 @@ Test Shapefiles and KML are generated in code (`tests/factories.py`), so the rep
 
 ## What I learned
 
-- **"Projected" doesn't mean "safe to measure in".** I assumed any metre-based CRS was fine until I tested Web
-  Mercator at 60°N and got roughly 4× the true area.
+- **"Projected" doesn't mean "safe to measure in".** Web Mercator is in metres, but at 60°N it overstates area
+  roughly 4×. The choice of projection matters as much as the decision to project.
 - **Not guessing is a valid design choice.** Treating a missing `.prj` as WGS84 is common, but if the
-  coordinates are actually in metres the output is confidently wrong. Returning "unavailable, here's why" is
-  more honest.
-- **Ring orientation matters.** My first geodesic test reference *added* a hole's area instead of subtracting it,
-  because `Geod` decides from ring winding direction. The service was right and the test was wrong; it only
-  showed up because the reference and the implementation used different methods.
-- **Framework internals affect security.** Starlette writes the whole multipart body to disk before my endpoint
-  runs, so a size check inside the endpoint alone doesn't stop a huge upload. GDAL's error messages contained
-  absolute server paths. User-supplied filenames behave differently on Windows (`:`, `<`, reserved names).
-- **Shapefiles hold one geometry type per file.** My first test fixture mixed polygons, lines and points in one
-  Shapefile and GDAL refused to write it.
-- **Long paths on Windows**: the compiled extensions (GDAL, GEOS, SQLAlchemy) failed to load from a very deep
-  directory, so the project had to move to a short path.
+  coordinates are actually in metres the result is confidently wrong. Returning "unavailable" with a reason is
+  more useful.
+- **Test against an independent method.** Comparing UTM results with geodesic values from `pyproj.Geod` checks
+  correctness, not just consistency with my own code.
+- **Upload limits depend on framework internals.** Starlette reads the whole multipart body before the endpoint
+  runs, so a size check inside the endpoint alone doesn't stop a huge upload.
 
 ## Future improvements
 
@@ -356,7 +355,3 @@ Test Shapefiles and KML are generated in code (`tests/factories.py`), so the rep
 - Geodesic measurement as a fallback for polar or very large features, instead of returning "unavailable".
 - More formats (GeoJSON, GeoPackage) — GDAL already supports them, so it's mostly validation work.
 - Polygon perimeter, and a choice of output units (hectares, km).
-
----
-
-AI coding assistants were used during development, as the assignment allows.
